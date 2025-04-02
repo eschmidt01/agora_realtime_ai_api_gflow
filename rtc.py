@@ -532,10 +532,12 @@ class Chat:
         Parameters:
             item: The message to send.
         """
+        logger.info(f"[Chat] Preparing to send message with msg_id: {item.msg_id}")
         await self.queue.put(item)
         # await self.queue.put_nowait(item)
 
     def _text_to_base64_chunks(self, text: str, msg_id: str) -> list:
+        logger.info(f"[Chat] Splitting text into base64 chunks. msg_id: {msg_id}, text: {text}")
         # Ensure msg_id does not exceed 50 characters
         if len(msg_id) > 32:
             raise ValueError("msg_id cannot exceed 32 characters.")
@@ -579,6 +581,7 @@ class Chat:
                     estimated_chunk_size -= 100  # Reduce content size gradually
                     count += 1
 
+            logger.info(f"[Chat] Created chunk {part_index} with estimated size {estimated_chunk_size} after {count} adjustments.")
             logger.debug(f"chunk estimate guess: {count}")
 
             # Add the current chunk to the list
@@ -591,6 +594,9 @@ class Chat:
             chunk.replace("???", str(total_parts)) for chunk in chunks
         ]
 
+        logger.info(f"[Chat] Total chunks for msg_id {msg_id}: {total_parts}")
+        logger.info(f"[Chat] Final chunk contents: {updated_chunks}")
+
         return updated_chunks
 
     async def _process_message(self) -> None:
@@ -600,8 +606,10 @@ class Chat:
 
         while True:
             item: ChatMessage = await self.queue.get()
+            logger.info(f"[Chat] Processing message with msg_id: {item.msg_id}")
             chunks = self._text_to_base64_chunks(item.message, item.msg_id)
             for chunk in chunks:
+                logger.info(f"[Chat] Sending chunk: {chunk}")
                 await self.channel.send_stream_message(chunk)
             self.queue.task_done()
 
